@@ -10,6 +10,7 @@ import org.cloudburstmc.nbt.NbtMap;
 import org.cloudburstmc.nbt.NbtMapBuilder;
 import org.cloudburstmc.nbt.util.stream.LittleEndianDataOutputStream;
 import org.cloudburstmc.protocol.bedrock.BedrockSession;
+import org.cloudburstmc.protocol.bedrock.data.BlockPropertyData;
 import org.cloudburstmc.protocol.bedrock.data.biome.BiomeDefinitionData;
 import org.cloudburstmc.protocol.bedrock.data.definitions.BlockDefinition;
 import org.cloudburstmc.protocol.bedrock.data.definitions.ItemDefinition;
@@ -133,6 +134,16 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
         this.session.getPeer().getCodecHelper().setBlockDefinitions(registry);
         player.getUpstream().getPeer().getCodecHelper().setBlockDefinitions(registry);
 
+        proxy.saveJson("block_properties.json", packet.getBlockProperties());
+        return PacketSignal.UNHANDLED;
+    }
+
+    @Override
+    public PacketSignal handle(VoxelShapesPacket packet) {
+        Map<String, Object> voxelShapes = new LinkedHashMap<>();
+        voxelShapes.put("names", packet.getNameMap());
+        voxelShapes.put("shapes", packet.getShapes());
+        proxy.saveJson("voxel_shapes.json", voxelShapes);
         return PacketSignal.UNHANDLED;
     }
 
