@@ -23,6 +23,7 @@ import org.cloudburstmc.protocol.common.DefinitionRegistry;
 import org.cloudburstmc.protocol.common.PacketSignal;
 import org.cloudburstmc.protocol.common.SimpleDefinitionRegistry;
 import org.cloudburstmc.proxypass.ProxyPass;
+import org.cloudburstmc.proxypass.network.bedrock.util.ItemDefinitionRegistries;
 import org.cloudburstmc.proxypass.network.bedrock.util.NbtBlockDefinitionRegistry;
 import org.cloudburstmc.proxypass.network.bedrock.util.RecipeUtils;
 
@@ -167,16 +168,11 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
         }
 
         if (ProxyPass.CODEC.getProtocolVersion() >= 776) {
-            SimpleDefinitionRegistry.Builder<ItemDefinition> builder = SimpleDefinitionRegistry.<ItemDefinition>builder()
-                    .add(new SimpleItemDefinition("minecraft:empty", 0, false));
-
-
             for (DataEntry entry : itemData) {
                 ProxyPass.legacyIdMap.put(entry.id(), entry.name());
-                builder.add(new SimpleItemDefinition(entry.name(), entry.id(), false));
             }
 
-            SimpleDefinitionRegistry<ItemDefinition> itemDefinitions = builder.build();
+            DefinitionRegistry<ItemDefinition> itemDefinitions = ItemDefinitionRegistries.fromDefinitions(packet.getItems());
 
             this.session.getPeer().getCodecHelper().setItemDefinitions(itemDefinitions);
             player.getUpstream().getPeer().getCodecHelper().setItemDefinitions(itemDefinitions);

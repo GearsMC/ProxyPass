@@ -6,13 +6,16 @@ import org.cloudburstmc.protocol.bedrock.data.EncodingSettings;
 import org.cloudburstmc.protocol.bedrock.data.PacketCompressionAlgorithm;
 import org.cloudburstmc.protocol.bedrock.data.auth.AuthType;
 import org.cloudburstmc.protocol.bedrock.data.auth.TokenPayload;
+import org.cloudburstmc.protocol.bedrock.data.definitions.ItemDefinition;
 import org.cloudburstmc.protocol.bedrock.packet.*;
 import org.cloudburstmc.protocol.bedrock.util.ChainValidationResult;
 import org.cloudburstmc.protocol.bedrock.util.ChainValidationResult.IdentityClaims;
 import org.cloudburstmc.protocol.bedrock.util.EncryptionUtils;
+import org.cloudburstmc.protocol.common.DefinitionRegistry;
 import org.cloudburstmc.protocol.common.PacketSignal;
 import org.cloudburstmc.proxypass.ProxyPass;
 import org.cloudburstmc.proxypass.network.bedrock.util.ForgeryUtils;
+import org.cloudburstmc.proxypass.network.bedrock.util.ItemDefinitionRegistries;
 import org.cloudburstmc.proxypass.network.bedrock.util.SkinUtils;
 import org.jose4j.json.JsonUtil;
 import org.jose4j.json.internal.json_simple.JSONObject;
@@ -99,6 +102,7 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             downstream.setSendSession(this.session);
             downstream.getPeer().getCodecHelper().setEncodingSettings(EncodingSettings.CLIENT);
             this.session.setSendSession(downstream);
+            this.seedDefinitionRegistries(downstream);
 
             ProxyPlayerSession proxySession = new ProxyPlayerSession(this.session, downstream, this.proxy, this.chain.identityClaims().extraData);
             this.player = proxySession;
@@ -139,5 +143,13 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
         if (this.session.getSendSession() != null && this.session.getSendSession().isConnected()) {
             this.session.getSendSession().disconnect(reason);
         }
+    }
+
+    private void seedDefinitionRegistries(ProxyClientSession downstream) {
+        DefinitionRegistry<ItemDefinition> itemDefinitions = ItemDefinitionRegistries.empty();
+        downstream.getPeer().getCodecHelper().setBlockDefinitions(this.proxy.getBlockDefinitions());
+        downstream.getPeer().getCodecHelper().setItemDefinitions(itemDefinitions);
+        this.session.getPeer().getCodecHelper().setBlockDefinitions(this.proxy.getBlockDefinitions());
+        this.session.getPeer().getCodecHelper().setItemDefinitions(itemDefinitions);
     }
 }
