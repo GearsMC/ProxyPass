@@ -4,6 +4,9 @@ protocol = "1.26.30-R3-SNAPSHOT"
 jackson = "3.2.2"
 
 [libraries]
+# GearsMC: NetherNet taşıması (CloudburstMC/network nethernet dalı, mavenLocal'e publishToMavenLocal ile kurulur).
+netty-transport-nethernet = { group = "org.cloudburstmc.netty", name = "netty-transport-nethernet", version = "2.0.0.CR3-SNAPSHOT" }
+libdatachannel = { group = "dev.opencollab", name = "libdatachannel-java", version = "0.24.5.0-SNAPSHOT" }
 bedrock-codec = { group = "org.allaymc.protocol", name = "bedrock-codec", version.ref = "protocol" }
 
 bedrock-connection = { group = "org.allaymc.protocol", name = "bedrock-connection", version.ref = "protocol" }

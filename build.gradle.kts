@@ -27,6 +27,8 @@ dependencies {
     compileOnly(libs.spotbugs.annotations)
     implementation(libs.bedrock.codec)
     implementation(libs.bedrock.connection)
+    implementation(libs.netty.transport.nethernet)
+    runtimeOnly(variantOf(libs.libdatachannel) { classifier("x86_64") })
     implementation(libs.jackson.databind)
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.common)

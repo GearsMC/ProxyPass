@@ -4,6 +4,7 @@ import lombok.extern.log4j.Log4j2;
 import org.cloudburstmc.protocol.bedrock.data.auth.AuthType;
 import org.cloudburstmc.protocol.bedrock.data.auth.TokenPayload;
 import org.cloudburstmc.protocol.bedrock.packet.*;
+import org.cloudburstmc.protocol.bedrock.netty.initializer.BedrockChannelInitializer;
 import org.cloudburstmc.protocol.bedrock.util.EncryptionUtils;
 import org.cloudburstmc.protocol.bedrock.util.JsonUtils;
 import org.cloudburstmc.proxypass.ProxyPass;
@@ -41,6 +42,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class DumpPacketHandler implements BedrockPacketHandler {
 
     private static final String DISPLAY_NAME = "GearsDumper";
+    /** 1.20.60+ istemcilerinin sıkıştırma dalı; NetherNet'te RakNet sürümü okunamadığı için sabit verilir. */
+    private static final int RAKNET_COMPRESSION_VERSION = 11;
 
     /** Döküm bu paketlerin hepsi gelince biter; hepsi kayıt verisi taşır. */
     private static final Set<String> REQUIRED = Set.of(
@@ -94,7 +97,9 @@ public class DumpPacketHandler implements BedrockPacketHandler {
 
     @Override
     public PacketSignal handle(NetworkSettingsPacket packet) {
-        this.session.setCompression(packet.getCompressionAlgorithm());
+        // NetherNet kanalında RAK_PROTOCOL_VERSION seçeneği yok; sıkıştırma stratejisi doğrudan verilir (v11 karşılığı).
+        this.session.getPeer().setCompression(
+                BedrockChannelInitializer.getCompression(packet.getCompressionAlgorithm(), RAKNET_COMPRESSION_VERSION, false));
         var login = new LoginPacket();
         login.setAuthPayload(new TokenPayload(forgeIdentityToken(), AuthType.SELF_SIGNED));
         login.setClientJwt(ForgeryUtils.forgeSkinData(this.keyPair, ClientDataForgery.build(DISPLAY_NAME)));

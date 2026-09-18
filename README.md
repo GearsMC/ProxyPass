@@ -38,6 +38,21 @@ Bu fork ProxyPass'i iki noktada değiştirir:
    `runtime_item_states.json`, `biome_definitions.json`, `stripped_biome_definitions.json`, `voxel_shapes.json`,
    `data_driven_blocks.nbt`, `entity_properties.nbt`, `jigsaw_structure_data.nbt`.
 
+### NetherNet (deneysel)
+
+`dump-nethernet <host> <keşif portu, BDS'te 7551> [saniye]` kipi CloudburstMC/network'ün `nethernet` dalındaki
+taşımayı kullanır (LAN keşfi; Microsoft oturumu gerekmez). Kütüphane `publishToMavenLocal` ile kurulur.
+
+Ölçülenler (2026-09-18, BDS 1.26.51):
+- LAN keşfi ve WebRTC veri kanalı kuruluyor ("NetherNet Connection Established").
+- **NetherNet mesajında RakNet'teki 0xFE çerçeve kimliği yok**; kimlikle gönderilen istek yanıtsız kalıyor, kimliksiz
+  gönderilince sunucu `NetworkSettings` ile cevap veriyor.
+- Kanalda RakNet'e özgü seçenek olmadığı için paket kodeği ve sıkıştırma elle kuruluyor
+  (`NetherNetBedrockInitializer`).
+- **Açık nokta:** `NetworkSettings`'ten sonra gönderilen giriş paketinin ardından sunucu veri kanalını sessizce
+  kapatıyor (`disconnect.lost`, BDS günlüğünde kayıt yok). Sıkıştırma anlaşması ya da giriş biçiminde bir ayrıntı
+  eksik; döküm bu adımdan sonrasına geçemiyor.
+
 ### Bilinen sınır: BDS artık RakNet kabul etmiyor
 
 1.26.51 BDS açılışta "NetherNet is the only supported transport type" diyor; `transport=raknet` ile RakNet portunu

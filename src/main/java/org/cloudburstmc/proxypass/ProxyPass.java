@@ -21,7 +21,10 @@ import org.cloudburstmc.protocol.bedrock.data.definitions.BlockDefinition;
 import org.cloudburstmc.protocol.bedrock.netty.BedrockPacketWrapper;
 import org.cloudburstmc.protocol.bedrock.netty.initializer.BedrockChannelInitializer;
 import org.cloudburstmc.protocol.bedrock.definition.DefinitionRegistry;
+import org.cloudburstmc.netty.channel.nethernet.NetherNetChannelFactory;
+import org.cloudburstmc.netty.channel.nethernet.signaling.NetherNetDiscoverySignaling;
 import org.cloudburstmc.proxypass.dump.HeadlessDump;
+import org.cloudburstmc.proxypass.dump.NetherNetBedrockInitializer;
 import org.cloudburstmc.proxypass.network.bedrock.jackson.ColorDeserializer;
 import org.cloudburstmc.proxypass.network.bedrock.jackson.ColorSerializer;
 import org.cloudburstmc.proxypass.network.bedrock.jackson.NbtDefinitionSerializer;
@@ -50,6 +53,7 @@ import java.net.InetSocketAddress;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -130,9 +134,9 @@ public class ProxyPass {
         ProxyPass proxy = new ProxyPass();
         try {
             // GearsMC: "dump <host> <port> [saniye]" istemcisiz döküm kipidir; argümansız çalıştırma eski proxy kipi.
-            if (args.length >= 3 && args[0].equals("dump")) {
+            if (args.length >= 3 && (args[0].equals("dump") || args[0].equals("dump-nethernet"))) {
                 proxy.bootDump(new InetSocketAddress(args[1], Integer.parseInt(args[2])),
-                        args.length > 3 ? Long.parseLong(args[3]) : 120);
+                        args.length > 3 ? Long.parseLong(args[3]) : 120, args[0].equals("dump-nethernet"));
                 return;
             }
             proxy.boot();
@@ -142,11 +146,11 @@ public class ProxyPass {
     }
 
     /** GearsMC: sunucuya kendimiz bağlanıp kayıt paketlerini {@code data/} altına yazarız (HeadlessDump). */
-    public void bootDump(InetSocketAddress target, long timeoutSeconds) throws IOException, InterruptedException {
+    public void bootDump(InetSocketAddress target, long timeoutSeconds, boolean netherNet) throws IOException, InterruptedException {
         loadConfiguration();
         prepareDirectories();
         loadBlockPalette();
-        HeadlessDump.run(this, target, timeoutSeconds);
+        HeadlessDump.run(this, target, timeoutSeconds, netherNet);
     }
 
     public void boot() throws IOException {
@@ -223,6 +227,23 @@ public class ProxyPass {
             this.blockDefinitions = this.blockDefinitionsHashed = new UnknownBlockDefinitionRegistry();
             log.warn("Failed to load block palette. Blocks will appear as runtime IDs in packet traces and creative_content.json!");
         }
+    }
+
+    /**
+     * GearsMC: NetherNet taşımasıyla istemci bağlantısı. Sunucu LAN keşfiyle bulunur (Microsoft oturumu gerekmez),
+     * bu yüzden adres keşif portudur (BDS varsayılanı 7551).
+     */
+    public void newNetherNetClient(InetSocketAddress discoveryAddress, Consumer<ProxyClientSession> sessionConsumer) {
+        var signaling = new NetherNetDiscoverySignaling(ThreadLocalRandom.current().nextLong());
+        Channel channel = new Bootstrap()
+                .group(this.eventLoopGroup)
+                .channelFactory(NetherNetChannelFactory.client(signaling))
+                .handler(new NetherNetBedrockInitializer(this, sessionConsumer))
+                .connect(discoveryAddress)
+                .awaitUninterruptibly()
+                .channel();
+
+        this.clients.add(channel);
     }
 
     public void newClient(InetSocketAddress socketAddress, Consumer<ProxyClientSession> sessionConsumer) {
