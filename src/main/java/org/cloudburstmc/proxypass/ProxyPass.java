@@ -20,7 +20,8 @@ import org.cloudburstmc.protocol.bedrock.codec.v2193.Bedrock_v2193;
 import org.cloudburstmc.protocol.bedrock.data.definitions.BlockDefinition;
 import org.cloudburstmc.protocol.bedrock.netty.BedrockPacketWrapper;
 import org.cloudburstmc.protocol.bedrock.netty.initializer.BedrockChannelInitializer;
-import org.cloudburstmc.protocol.common.DefinitionRegistry;
+import org.cloudburstmc.protocol.bedrock.definition.DefinitionRegistry;
+import org.cloudburstmc.proxypass.dump.HeadlessDump;
 import org.cloudburstmc.proxypass.network.bedrock.jackson.ColorDeserializer;
 import org.cloudburstmc.proxypass.network.bedrock.jackson.ColorSerializer;
 import org.cloudburstmc.proxypass.network.bedrock.jackson.NbtDefinitionSerializer;
@@ -128,20 +129,28 @@ public class ProxyPass {
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.DISABLED);
         ProxyPass proxy = new ProxyPass();
         try {
+            // GearsMC: "dump <host> <port> [saniye]" istemcisiz döküm kipidir; argümansız çalıştırma eski proxy kipi.
+            if (args.length >= 3 && args[0].equals("dump")) {
+                proxy.bootDump(new InetSocketAddress(args[1], Integer.parseInt(args[2])),
+                        args.length > 3 ? Long.parseLong(args[3]) : 120);
+                return;
+            }
             proxy.boot();
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void boot() throws IOException {
-        log.info("Loading configuration...");
-        Path configPath = Paths.get(".").resolve("config.yml");
-        if (Files.notExists(configPath) || !Files.isRegularFile(configPath)) {
-            Files.copy(ProxyPass.class.getClassLoader().getResourceAsStream("config.yml"), configPath, StandardCopyOption.REPLACE_EXISTING);
-        }
+    /** GearsMC: sunucuya kendimiz bağlanıp kayıt paketlerini {@code data/} altına yazarız (HeadlessDump). */
+    public void bootDump(InetSocketAddress target, long timeoutSeconds) throws IOException, InterruptedException {
+        loadConfiguration();
+        prepareDirectories();
+        loadBlockPalette();
+        HeadlessDump.run(this, target, timeoutSeconds);
+    }
 
-        configuration = Configuration.load(configPath);
+    public void boot() throws IOException {
+        loadConfiguration();
 
         proxyAddress = configuration.getProxy().getAddress();
         targetAddress = configuration.getDestination().getAddress();
@@ -155,22 +164,8 @@ public class ProxyPass {
             }
         });
 
-        baseDir = Paths.get(".").toAbsolutePath();
-        sessionsDir = baseDir.resolve("sessions");
-        dataDir = baseDir.resolve("data");
-        Files.createDirectories(sessionsDir);
-        Files.createDirectories(dataDir);
-
-        // Load block palette, if it exists
-        Object object = this.loadGzipNBT("block_palette.nbt");
-
-        if (object instanceof NbtMap map) {
-            this.blockDefinitions = new NbtBlockDefinitionRegistry(map.getList("blocks", NbtType.COMPOUND), false);
-            this.blockDefinitionsHashed = new NbtBlockDefinitionRegistry(map.getList("blocks", NbtType.COMPOUND), true);
-        } else {
-            this.blockDefinitions = this.blockDefinitionsHashed = new UnknownBlockDefinitionRegistry();
-            log.warn("Failed to load block palette. Blocks will appear as runtime IDs in packet traces and creative_content.json!");
-        }
+        prepareDirectories();
+        loadBlockPalette();
 
         log.info("Loading server...");
         ADVERTISEMENT.ipv4Port(this.proxyAddress.getPort())
@@ -197,6 +192,37 @@ public class ProxyPass {
         log.info("Bedrock server {} ({}) started on {}", ProxyPass.CODEC.getMinecraftVersion(), ProxyPass.CODEC.getProtocolVersion(), proxyAddress);
 
         loop();
+    }
+
+    private void loadConfiguration() throws IOException {
+        log.info("Loading configuration...");
+        Path configPath = Paths.get(".").resolve("config.yml");
+        if (Files.notExists(configPath) || !Files.isRegularFile(configPath)) {
+            Files.copy(ProxyPass.class.getClassLoader().getResourceAsStream("config.yml"), configPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        configuration = Configuration.load(configPath);
+    }
+
+    private void prepareDirectories() throws IOException {
+        baseDir = Paths.get(".").toAbsolutePath();
+        sessionsDir = baseDir.resolve("sessions");
+        dataDir = baseDir.resolve("data");
+        Files.createDirectories(sessionsDir);
+        Files.createDirectories(dataDir);
+    }
+
+    private void loadBlockPalette() {
+        // Load block palette, if it exists
+        Object object = this.loadGzipNBT("block_palette.nbt");
+
+        if (object instanceof NbtMap map) {
+            this.blockDefinitions = new NbtBlockDefinitionRegistry(map.getList("blocks", NbtType.COMPOUND), false);
+            this.blockDefinitionsHashed = new NbtBlockDefinitionRegistry(map.getList("blocks", NbtType.COMPOUND), true);
+        } else {
+            this.blockDefinitions = this.blockDefinitionsHashed = new UnknownBlockDefinitionRegistry();
+            log.warn("Failed to load block palette. Blocks will appear as runtime IDs in packet traces and creative_content.json!");
+        }
     }
 
     public void newClient(InetSocketAddress socketAddress, Consumer<ProxyClientSession> sessionConsumer) {
@@ -316,7 +342,7 @@ public class ProxyPass {
     }
 
     public void savePacket(BedrockPacketWrapper wrapper) {
-        String name = wrapper.getPacket().getPacketType().getName().toLowerCase() + "_" + System.currentTimeMillis() + ".dat";
+        String name = wrapper.getPacket().getPacketType().name().toLowerCase() + "_" + System.currentTimeMillis() + ".dat";
 
         ByteBuf packetBuf = wrapper.getPacketBuffer().slice();
         packetBuf.skipBytes(wrapper.getHeaderLength()); // skip header

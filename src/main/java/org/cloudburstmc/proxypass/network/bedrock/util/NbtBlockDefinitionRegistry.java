@@ -6,7 +6,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.cloudburstmc.nbt.NbtMap;
 import org.cloudburstmc.protocol.bedrock.data.definitions.BlockDefinition;
-import org.cloudburstmc.protocol.common.DefinitionRegistry;
+import org.cloudburstmc.protocol.bedrock.definition.DefinitionRegistry;
 
 import java.util.List;
 
@@ -29,14 +29,10 @@ public class NbtBlockDefinitionRegistry implements DefinitionRegistry<BlockDefin
 
     @Override
     public boolean isRegistered(BlockDefinition definition) {
-        return definitions.get(definition.getRuntimeId()) == definition;
+        return definitions.get(definition.runtimeId()) == definition;
     }
 
+    // GearsMC/Protocol: Definition erişimcisi record biçiminde (runtimeId()), ayrı getter yok.
     public record NbtBlockDefinition(@JsonIgnoreProperties int runtimeId, NbtMap tag) implements BlockDefinition {
-        @Override
-        @JsonIgnore
-        public int getRuntimeId() {
-            return runtimeId;
-        }
     }
 }

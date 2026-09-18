@@ -33,7 +33,7 @@ public class TestUtils {
     public static void testPacket(BedrockSession session, BedrockPacketWrapper wrapper) {
         BedrockPacket packet = wrapper.getPacket();
         if (!(packet instanceof UnknownPacket)) {
-            int packetId = ProxyPass.CODEC.getPacketDefinition(packet.getClass()).getId();
+            int packetId = ProxyPass.CODEC.getPacketDefinition(packet.getClass()).id();
             ByteBuf buffer = ByteBufAllocator.DEFAULT.ioBuffer();
             ByteBuf originalBuffer = wrapper.getPacketBuffer();
             // Get packet buffer without header.

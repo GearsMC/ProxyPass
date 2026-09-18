@@ -10,7 +10,7 @@ plugins {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
@@ -26,7 +26,6 @@ dependencies {
     annotationProcessor(libs.lombok)
     compileOnly(libs.spotbugs.annotations)
     implementation(libs.bedrock.codec)
-    implementation(libs.bedrock.common)
     implementation(libs.bedrock.connection)
     implementation(libs.jackson.databind)
     implementation(libs.jackson.dataformat.yaml)

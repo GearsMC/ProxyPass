@@ -2,8 +2,8 @@ package org.cloudburstmc.proxypass.network.bedrock.util;
 
 import lombok.experimental.UtilityClass;
 import org.cloudburstmc.protocol.bedrock.data.definitions.ItemDefinition;
-import org.cloudburstmc.protocol.common.DefinitionRegistry;
-import org.cloudburstmc.protocol.common.SimpleDefinitionRegistry;
+import org.cloudburstmc.protocol.bedrock.definition.DefinitionRegistry;
+import org.cloudburstmc.protocol.bedrock.definition.SimpleDefinitionRegistry;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -30,7 +30,7 @@ public class ItemDefinitionRegistries {
     }
 
     private static void add(SimpleDefinitionRegistry.Builder<ItemDefinition> builder, Set<Integer> runtimeIds, ItemDefinition definition) {
-        if (runtimeIds.add(definition.getRuntimeId())) {
+        if (runtimeIds.add(definition.runtimeId())) {
             builder.add(definition);
         }
     }

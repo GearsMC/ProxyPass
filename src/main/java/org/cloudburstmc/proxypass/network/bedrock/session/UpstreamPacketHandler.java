@@ -11,8 +11,8 @@ import org.cloudburstmc.protocol.bedrock.packet.*;
 import org.cloudburstmc.protocol.bedrock.util.ChainValidationResult;
 import org.cloudburstmc.protocol.bedrock.util.ChainValidationResult.IdentityClaims;
 import org.cloudburstmc.protocol.bedrock.util.EncryptionUtils;
-import org.cloudburstmc.protocol.common.DefinitionRegistry;
-import org.cloudburstmc.protocol.common.PacketSignal;
+import org.cloudburstmc.protocol.bedrock.definition.DefinitionRegistry;
+import org.cloudburstmc.protocol.bedrock.packet.PacketSignal;
 import org.cloudburstmc.proxypass.ProxyPass;
 import org.cloudburstmc.proxypass.network.bedrock.util.ForgeryUtils;
 import org.cloudburstmc.proxypass.network.bedrock.util.ItemDefinitionRegistries;
@@ -139,7 +139,7 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
     }
 
     @Override
-    public void onDisconnect(CharSequence reason) {
+    public void onDisconnect(String reason) {
         if (this.session.getSendSession() != null && this.session.getSendSession().isConnected()) {
             this.session.getSendSession().disconnect(reason);
         }

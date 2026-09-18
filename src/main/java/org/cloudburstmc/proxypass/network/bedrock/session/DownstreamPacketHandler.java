@@ -19,9 +19,9 @@ import org.cloudburstmc.protocol.bedrock.data.inventory.CreativeItemData;
 import org.cloudburstmc.protocol.bedrock.data.inventory.CreativeItemGroup;
 import org.cloudburstmc.protocol.bedrock.data.inventory.ItemData;
 import org.cloudburstmc.protocol.bedrock.packet.*;
-import org.cloudburstmc.protocol.common.DefinitionRegistry;
-import org.cloudburstmc.protocol.common.PacketSignal;
-import org.cloudburstmc.protocol.common.SimpleDefinitionRegistry;
+import org.cloudburstmc.protocol.bedrock.definition.DefinitionRegistry;
+import org.cloudburstmc.protocol.bedrock.packet.PacketSignal;
+import org.cloudburstmc.protocol.bedrock.definition.SimpleDefinitionRegistry;
 import org.cloudburstmc.proxypass.ProxyPass;
 import org.cloudburstmc.proxypass.network.bedrock.util.ItemDefinitionRegistries;
 import org.cloudburstmc.proxypass.network.bedrock.util.NbtBlockDefinitionRegistry;
@@ -63,17 +63,19 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
         }
 
         if (packet.getBiomes() != null) {
-            Map<String, BiomeDefinitionData> definitions = packet.getBiomes().getDefinitions();
+            Map<String, BiomeDefinitionData> definitions = packet.getBiomes().definitions();
             Map<String, BiomeDefinitionData> strippedDefinitions = new LinkedHashMap<>();
 
             // Enable client-side chunk generation
-            proxy.saveJson("biome_definitions.json", packet.getBiomes().getDefinitions());
+            proxy.saveJson("biome_definitions.json", packet.getBiomes().definitions());
 
             for (Map.Entry<String, BiomeDefinitionData> entry : definitions.entrySet()) {
                 String id = entry.getKey();
                 BiomeDefinitionData data = entry.getValue();
 
-                strippedDefinitions.put(id, new BiomeDefinitionData(data.getId(), data.getTemperature(), data.getDownfall(), data.getFoliageSnow(), data.getDepth(), data.getScale(), data.getMapWaterColor(), data.isRain(), data.getTags(), null));
+                strippedDefinitions.put(id, new BiomeDefinitionData(data.id(), data.temperature(), data.downfall(), data.redSporeDensity(),
+                        data.blueSporeDensity(), data.ashDensity(), data.whiteAshDensity(), data.foliageSnow(),
+                        data.depth(), data.scale(), data.mapWaterColor(), data.rain(), data.tags(), null));
             }
 
             proxy.saveJson("stripped_biome_definitions.json", strippedDefinitions);
@@ -91,22 +93,22 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
             LinkedHashMap<String, Integer> legacyBlocks = new LinkedHashMap<>();
 
             for (ItemDefinition entry : packet.getItemDefinitions()) {
-                if (entry.getRuntimeId() > 255) {
-                    legacyItems.putIfAbsent(entry.getIdentifier(), entry.getRuntimeId());
+                if (entry.runtimeId() > 255) {
+                    legacyItems.putIfAbsent(entry.identifier(), entry.runtimeId());
                 } else {
-                    String id = entry.getIdentifier();
+                    String id = entry.identifier();
                     if (id.contains(":item.")) {
                         id = id.replace(":item.", ":");
                     }
-                    if (entry.getRuntimeId() > 0) {
-                        legacyBlocks.putIfAbsent(id, entry.getRuntimeId());
+                    if (entry.runtimeId() > 0) {
+                        legacyBlocks.putIfAbsent(id, entry.runtimeId());
                     } else {
-                        legacyBlocks.putIfAbsent(id, 255 - entry.getRuntimeId());
+                        legacyBlocks.putIfAbsent(id, 255 - entry.runtimeId());
                     }
                 }
 
-                itemData.add(new DataEntry(entry.getIdentifier(), entry.getRuntimeId(), -1, false));
-                ProxyPass.legacyIdMap.put(entry.getRuntimeId(), entry.getIdentifier());
+                itemData.add(new DataEntry(entry.identifier(), entry.runtimeId(), -1, false));
+                ProxyPass.legacyIdMap.put(entry.runtimeId(), entry.identifier());
             }
 
             SimpleDefinitionRegistry<ItemDefinition> itemDefinitions = SimpleDefinitionRegistry.<ItemDefinition>builder()
@@ -115,7 +117,9 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
                     .build();
 
             this.session.getPeer().getCodecHelper().setItemDefinitions(itemDefinitions);
-            player.getUpstream().getPeer().getCodecHelper().setItemDefinitions(itemDefinitions);
+            if (player != null) {
+                player.getUpstream().getPeer().getCodecHelper().setItemDefinitions(itemDefinitions);
+            }
 
             itemData.sort(Comparator.comparing(o -> o.name));
 
@@ -133,11 +137,13 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
         }
 
         this.session.getPeer().getCodecHelper().setBlockDefinitions(registry);
-        player.getUpstream().getPeer().getCodecHelper().setBlockDefinitions(registry);
+        if (player != null) {
+            player.getUpstream().getPeer().getCodecHelper().setBlockDefinitions(registry);
+        }
 
         NbtMapBuilder blockProperties = NbtMap.builder();
         for (BlockPropertyData property : packet.getBlockProperties()) {
-            blockProperties.putCompound(property.getName(), property.getProperties());
+            blockProperties.putCompound(property.name(), property.properties());
         }
         proxy.saveCompressedNBT("data_driven_blocks", blockProperties.build());
 
@@ -169,13 +175,16 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
     }
 
     @Override
-    public PacketSignal handle(ItemComponentPacket packet) {
+    public PacketSignal handle(ItemRegistryPacket packet) {
         List<DataEntry> itemData = new ArrayList<>();
 
         NbtMapBuilder root = NbtMap.builder();
         for (var item : packet.getItems()) {
-            root.putCompound(item.getIdentifier(), item.getComponentData());
-            itemData.add(new DataEntry(item.getIdentifier(), item.getRuntimeId(), item.getVersion().ordinal(), item.isComponentBased()));
+            // GearsMC/Protocol: ItemComponentPacket -> ItemRegistryPacket, erişimciler record biçiminde.
+            if (item.componentData() != null) {
+                root.putCompound(item.identifier(), item.componentData());
+            }
+            itemData.add(new DataEntry(item.identifier(), item.runtimeId(), item.version().ordinal(), item.componentBased()));
         }
 
         if (ProxyPass.CODEC.getProtocolVersion() >= 776) {
@@ -186,7 +195,9 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
             DefinitionRegistry<ItemDefinition> itemDefinitions = ItemDefinitionRegistries.fromDefinitions(packet.getItems());
 
             this.session.getPeer().getCodecHelper().setItemDefinitions(itemDefinitions);
-            player.getUpstream().getPeer().getCodecHelper().setItemDefinitions(itemDefinitions);
+            if (player != null) {
+                player.getUpstream().getPeer().getCodecHelper().setItemDefinitions(itemDefinitions);
+            }
 
             itemData.sort(Comparator.comparing(o -> o.name));
             proxy.saveJson("runtime_item_states.json", itemData);
@@ -213,14 +224,14 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
     private void dumpCreativeItems(List<CreativeItemGroup> groups, List<CreativeItemData> contents) {
         List<CreativeGroup> groupEntries = new ArrayList<>();
         for (CreativeItemGroup group : groups) {
-            String categoryName = group.getCategory().name().toLowerCase();
-            String name = group.getName();
-            groupEntries.add(new CreativeGroup(name, categoryName, createCreativeItemEntry(group.getIcon())));
+            String categoryName = group.category().name().toLowerCase();
+            String name = group.name();
+            groupEntries.add(new CreativeGroup(name, categoryName, createCreativeItemEntry(group.icon())));
         }
 
         List<CreativeItemEntry> entries = new ArrayList<>();
         for (CreativeItemData content : contents) {
-            entries.add(createCreativeItemEntry(content.getItem(), content.getGroupId()));
+            entries.add(createCreativeItemEntry(content.item(), content.groupId()));
         }
 
         Map<String, Object> items = new HashMap<>();
@@ -237,7 +248,7 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
 
     private ItemEntry createCreativeItemEntry(ItemData data) {
         ItemDefinition entry = data.getDefinition();
-        String id = entry.getIdentifier();
+        String id = entry.identifier();
         Integer damage = data.getDamage() == 0 ? null : (int) data.getDamage();
 
         String blockTag = null;
@@ -245,7 +256,7 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
         if (data.getBlockDefinition() instanceof NbtBlockDefinitionRegistry.NbtBlockDefinition definition) {
             blockTag = encodeNbtToString(definition.tag());
         } else if (data.getBlockDefinition() != null) {
-            blockRuntimeId = data.getBlockDefinition().getRuntimeId();
+            blockRuntimeId = data.getBlockDefinition().runtimeId();
         }
 
         NbtMap tag = data.getTag();

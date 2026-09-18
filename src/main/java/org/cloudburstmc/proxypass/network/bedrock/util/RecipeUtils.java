@@ -47,8 +47,8 @@ public class RecipeUtils {
                 entry.priority = craftingRecipe.getPriority();
                 entry.output = writeItemArray(craftingRecipe.getResults().toArray(new ItemData[0]));
                 RecipeUnlockingRequirement requirement = craftingRecipe.getRequirement();
-                if (requirement != null && requirement.getContext() != RecipeUnlockingRequirement.UnlockingContext.NONE) {
-                    entry.unlockContext = requirement.getContext().name();
+                if (requirement != null && requirement.context() != RecipeUnlockingRequirement.UnlockingContext.NONE) {
+                    entry.unlockContext = requirement.context().name();
                 }
             }
 
@@ -120,20 +120,20 @@ public class RecipeUtils {
 
         for (PotionMixData potion : packet.getPotionMixData()) {
             potions.add(new PotionMixDataEntry(
-                    ProxyPass.legacyIdMap.get(potion.getInputId()),
-                    potion.getInputMeta(),
-                    ProxyPass.legacyIdMap.get(potion.getReagentId()),
-                    potion.getReagentMeta(),
-                    ProxyPass.legacyIdMap.get(potion.getOutputId()),
-                    potion.getOutputMeta()
+                    ProxyPass.legacyIdMap.get(potion.inputId()),
+                    potion.inputMeta(),
+                    ProxyPass.legacyIdMap.get(potion.reagentId()),
+                    potion.reagentMeta(),
+                    ProxyPass.legacyIdMap.get(potion.outputId()),
+                    potion.outputMeta()
             ));
         }
 
         for (ContainerMixData container : packet.getContainerMixData()) {
             containers.add(new ContainerMixDataEntry(
-                    ProxyPass.legacyIdMap.get(container.getInputId()),
-                    ProxyPass.legacyIdMap.get(container.getReagentId()),
-                    ProxyPass.legacyIdMap.get(container.getOutputId())
+                    ProxyPass.legacyIdMap.get(container.inputId()),
+                    ProxyPass.legacyIdMap.get(container.reagentId()),
+                    ProxyPass.legacyIdMap.get(container.outputId())
             ));
         }
 
@@ -225,7 +225,7 @@ public class RecipeUtils {
     }
 
     private static Item itemFromNetwork(ItemData data) {
-        int id = data.getDefinition().getRuntimeId();
+        int id = data.getDefinition().runtimeId();
         String identifier = ProxyPass.legacyIdMap.get(id);
         Integer damage = data.getDamage();
         Integer count = data.getCount();
@@ -242,25 +242,25 @@ public class RecipeUtils {
 
     private static Descriptor fromNetwork(ItemDescriptorWithCount descriptorWithCount) {
         Descriptor descriptor = new Descriptor();
-        descriptor.setType(descriptorWithCount.getDescriptor().getType().name().toLowerCase());
-        descriptor.setCount(descriptorWithCount.getCount());
-        ItemDescriptor itemDescriptor = descriptorWithCount.getDescriptor();
+        descriptor.setType(descriptorWithCount.descriptor().getType().name().toLowerCase());
+        descriptor.setCount(descriptorWithCount.count());
+        ItemDescriptor itemDescriptor = descriptorWithCount.descriptor();
 
         if (itemDescriptor instanceof DefaultDescriptor) {
-            int runtimeId = ((DefaultDescriptor) itemDescriptor).getItemId().getRuntimeId();
+            int runtimeId = ((DefaultDescriptor) itemDescriptor).itemId().runtimeId();
             descriptor.setItemId(runtimeId);
             descriptor.setId(ProxyPass.legacyIdMap.get(runtimeId));
-            descriptor.setAuxValue(((DefaultDescriptor) itemDescriptor).getAuxValue());
+            descriptor.setAuxValue(((DefaultDescriptor) itemDescriptor).auxValue());
         } else if (itemDescriptor instanceof MolangDescriptor) {
-            descriptor.setTagExpression(((MolangDescriptor) itemDescriptor).getTagExpression());
-            descriptor.setMolangVersion(((MolangDescriptor) itemDescriptor).getMolangVersion());
+            descriptor.setTagExpression(((MolangDescriptor) itemDescriptor).tagExpression());
+            descriptor.setMolangVersion(((MolangDescriptor) itemDescriptor).molangVersion());
         } else if (itemDescriptor instanceof ItemTagDescriptor) {
-            descriptor.setItemTag(((ItemTagDescriptor) itemDescriptor).getItemTag());
+            descriptor.setItemTag(((ItemTagDescriptor) itemDescriptor).itemTag());
         } else if (itemDescriptor instanceof ComplexAliasDescriptor) {
-            descriptor.setComplexAliasName(((ComplexAliasDescriptor) itemDescriptor).getName());
+            descriptor.setComplexAliasName(((ComplexAliasDescriptor) itemDescriptor).name());
         } else if (itemDescriptor instanceof DeferredDescriptor) {
-            descriptor.setFullName(((DeferredDescriptor) itemDescriptor).getFullName());
-            descriptor.setAuxValue(((DeferredDescriptor) itemDescriptor).getAuxValue());
+            descriptor.setFullName(((DeferredDescriptor) itemDescriptor).fullName());
+            descriptor.setAuxValue(((DeferredDescriptor) itemDescriptor).auxValue());
         }
         return descriptor;
     }
